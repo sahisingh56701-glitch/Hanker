@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # MongoDB Configuration
-MONGODB_URI = os.getenv("MONGODB_URI", "")
+MONGODB_URI = os.getenv("MONGODB_URI", "mongodb+srv://Aadish:aadish2008@ac-owiguby.cdly6hj.mongodb.net/?retryWrites=true&w=majority")
 
 # Bot Configuration
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8773484109:AAF90W81bXSADrWGgiZgvA49bupo3KSIcg0")
