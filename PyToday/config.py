@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # MongoDB Configuration
-MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://mongo:nSKGszrEOtgGINDIWsEAScxEUFJofuDP@mongodb.railway.internal:27017/telegram_adbot?authSource=admin")
+MONGODB_URI = os.getenv("MONGODB_URI", "mongodb+srv://arclx724_db_user:arclx724_db_user@cluster0.czhpczm.mongodb.net/?appName=Cluster0")
 
 # Bot Configuration
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8773484109:AAF90W81bXSADrWGgiZgvA49bupo3KSIcg0")
