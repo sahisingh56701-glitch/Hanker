@@ -8,7 +8,7 @@ load_dotenv()
 MONGODB_URI = os.getenv("MONGODB_URI", "mongodb+srv://Aadish:aadish2008@ac-owiguby.cdly6hj.mongodb.net/?retryWrites=true&w=majority")
 
 # Bot Configuration
-BOT_TOKEN = os.getenv("BOT_TOKEN", "8773484109:AAG2Vi_WAjeIIsqZ7v1SVASQ6dMP7xaaRb0")
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8773484109:AAF90W81bXSADrWGgiZgvA49bupo3KSIcg0")
 
 # Encryption Key
 ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY", "")
