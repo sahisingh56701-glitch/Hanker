@@ -1,14 +1,13 @@
-
 import asyncio
 import logging
-import time
 import os
+import telegram
+from aiohttp import web
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 from telegram.error import NetworkError, TimedOut, RetryAfter, TelegramError
 from PyToday import database
 from PyToday.handlers import start_command, handle_callback, handle_message, broadcast_command, admin_command
 from PyToday import config
-from aiohttp import web
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -18,6 +17,8 @@ logger = logging.getLogger(__name__)
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("telegram").setLevel(logging.WARNING)
+
+application = None
 
 
 async def error_handler(update, context):
@@ -45,7 +46,7 @@ async def error_handler(update, context):
         logger.error(f"Unexpected error: {e}", exc_info=True)
 
 
-async def post_init(application):
+async def post_init(app):
     await database.init_db()
     logger.info("✅ Database initialized successfully")
 
@@ -54,25 +55,16 @@ async def health_check(request):
     return web.Response(text="Bot is running!", status=200)
 
 
-async def start_web_server():
-    """Start aiohttp web server on the same event loop as the bot."""
-    app = web.Application()
-    app.router.add_get('/', health_check)
-    app.router.add_get('/health', health_check)
-
-    port = int(os.getenv('PORT', 8080))
-
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', port)
-    await site.start()
-
-    logger.info(f"🌐 Web server started on port {port}")
-    return runner
+async def telegram_webhook(request):
+    data = await request.json()
+    update = telegram.Update.de_json(data, application.bot)
+    await application.process_update(update)
+    return web.Response(status=200)
 
 
 async def run_bot():
-    """Run bot and web server together on the same event loop."""
+    global application
+
     if not config.BOT_TOKEN:
         logger.error("BOT_TOKEN not set!")
         return
@@ -80,53 +72,48 @@ async def run_bot():
         logger.error("MONGODB_URI not set!")
         return
 
-    # Start web server on the same loop — no threads needed
-    web_runner = await start_web_server()
+    webhook_url = os.getenv("WEBHOOK_URL")
+    port = int(os.getenv("PORT", 8080))
+
+    aio_app = web.Application()
+    aio_app.router.add_get("/", health_check)
+    aio_app.router.add_get("/health", health_check)
+    aio_app.router.add_post("/telegram", telegram_webhook)
+
+    runner = web.AppRunner(aio_app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    logger.info(f"🌐 Web server started on port {port}")
+
+    application = (
+        Application.builder()
+        .token(config.BOT_TOKEN)
+        .post_init(post_init)
+        .build()
+    )
+
+    application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("broadcast", broadcast_command))
+    application.add_handler(CommandHandler("admin", admin_command))
+    application.add_handler(CallbackQueryHandler(handle_callback))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    application.add_error_handler(error_handler)
 
     print("╔══════════════════════════════════════╗")
     print("║  🤖 ᴘʏᴛᴏᴅᴀʏ ᴀᴅ ʙᴏᴛ sᴛᴀʀᴛᴇᴅ          ║")
     print("║  📢 Join t.me/PythonTodayz           ║")
     print("╚══════════════════════════════════════╝")
 
-    while True:
-        try:
-            application = (
-                Application.builder()
-                .token(config.BOT_TOKEN)
-                .post_init(post_init)
-                .build()
-            )
-
-            application.add_handler(CommandHandler("start", start_command))
-            application.add_handler(CommandHandler("broadcast", broadcast_command))
-            application.add_handler(CommandHandler("admin", admin_command))
-            application.add_handler(CallbackQueryHandler(handle_callback))
-            application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-            application.add_error_handler(error_handler)
-
-            async with application:
-                await application.start()
-                await application.updater.start_polling(
-                    allowed_updates=["message", "callback_query"],
-                    drop_pending_updates=True,
-                    poll_interval=1.0,
-                    timeout=30
-                )
-                # Keep running until interrupted
-                await asyncio.Event().wait()
-
-        except (NetworkError, TimedOut) as e:
-            logger.error(f"Network error, restarting in {config.RETRY_DELAY}s: {e}")
-            await asyncio.sleep(config.RETRY_DELAY)
-        except asyncio.CancelledError:
-            logger.info("Bot stopped.")
-            break
-        except Exception as e:
-            logger.error(f"Fatal error, restarting in {config.RETRY_DELAY}s: {e}", exc_info=True)
-            await asyncio.sleep(config.RETRY_DELAY)
-        finally:
-            if web_runner:
-                await web_runner.cleanup()
+    async with application:
+        await application.bot.set_webhook(
+            url=f"{webhook_url}/telegram",
+            allowed_updates=["message", "callback_query"],
+            drop_pending_updates=True,
+        )
+        await application.start()
+        logger.info(f"✅ Webhook set to {webhook_url}/telegram")
+        await asyncio.Event().wait()
 
 
 if __name__ == "__main__":
@@ -134,3 +121,4 @@ if __name__ == "__main__":
         asyncio.run(run_bot())
     except KeyboardInterrupt:
         logger.info("Bot stopped by user")
+        
