@@ -62,6 +62,21 @@ async def telegram_webhook(request):
     return web.Response(status=200)
 
 
+async def start_web_server(enable_webhook: bool):
+    port = int(os.getenv("PORT", 8080))
+    aio_app = web.Application()
+    aio_app.router.add_get("/", health_check)
+    aio_app.router.add_get("/health", health_check)
+    if enable_webhook:
+        aio_app.router.add_post("/telegram", telegram_webhook)
+    runner = web.AppRunner(aio_app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    logger.info(f"🌐 Web server started on port {port}")
+    return runner
+
+
 async def run_bot():
     global application
 
@@ -72,19 +87,10 @@ async def run_bot():
         logger.error("MONGODB_URI not set!")
         return
 
-    webhook_url = os.getenv("WEBHOOK_URL")
-    port = int(os.getenv("PORT", 8080))
+    webhook_url = os.getenv("WEBHOOK_URL", "").strip()
+    use_webhook = bool(webhook_url)
 
-    aio_app = web.Application()
-    aio_app.router.add_get("/", health_check)
-    aio_app.router.add_get("/health", health_check)
-    aio_app.router.add_post("/telegram", telegram_webhook)
-
-    runner = web.AppRunner(aio_app)
-    await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", port)
-    await site.start()
-    logger.info(f"🌐 Web server started on port {port}")
+    runner = await start_web_server(enable_webhook=use_webhook)
 
     application = (
         Application.builder()
@@ -105,15 +111,32 @@ async def run_bot():
     print("║  📢 Join t.me/PythonTodayz           ║")
     print("╚══════════════════════════════════════╝")
 
-    async with application:
-        await application.bot.set_webhook(
-            url=f"{webhook_url}/telegram",
-            allowed_updates=["message", "callback_query"],
-            drop_pending_updates=True,
-        )
-        await application.start()
-        logger.info(f"✅ Webhook set to {webhook_url}/telegram")
-        await asyncio.Event().wait()
+    try:
+        async with application:
+            if use_webhook:
+                await application.bot.set_webhook(
+                    url=f"{webhook_url}/telegram",
+                    allowed_updates=["message", "callback_query"],
+                    drop_pending_updates=True,
+                )
+                await application.start()
+                logger.info(f"✅ Webhook mode active: {webhook_url}/telegram")
+                await asyncio.Event().wait()
+            else:
+                await application.bot.delete_webhook(drop_pending_updates=True)
+                await application.start()
+                logger.info("✅ Polling mode active (set WEBHOOK_URL env var to switch to webhooks)")
+                await application.updater.start_polling(
+                    allowed_updates=["message", "callback_query"],
+                    drop_pending_updates=True,
+                    poll_interval=1.0,
+                    timeout=30,
+                )
+                await asyncio.Event().wait()
+    except asyncio.CancelledError:
+        pass
+    finally:
+        await runner.cleanup()
 
 
 if __name__ == "__main__":
