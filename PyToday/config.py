@@ -5,10 +5,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # MongoDB Configuration
-MONGODB_URI = os.getenv("MONGODB_URI", "mongodb+srv://ash211048:818ZD8pTsJKN39Iz@cluster0.kj6dtia.mongodb.net/Yukki?retryWrites=true&w=majority")
+MONGODB_URI = os.getenv("MONGODB_URI", "")
 
 # Bot Configuration
-BOT_TOKEN = os.getenv("BOT_TOKEN", "8773484109:AAG2Vi_WAjeIIsqZ7v1SVASQ6dMP7xaaRb0")
+BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 
 # Encryption Key
 ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY", "")
@@ -16,7 +16,7 @@ if not ENCRYPTION_KEY:
     ENCRYPTION_KEY = secrets.token_urlsafe(32)
 
 # Admin Configuration
-ADMIN_USER_IDS = [int(x) for x in os.getenv("ADMIN_USER_IDS", "7374777195").split(",") if x.strip()]
+ADMIN_USER_IDS = [int(x) for x in os.getenv("ADMIN_USER_IDS", "").split(",") if x.strip()]
 
 # Sessions Directory
 SESSIONS_DIR = "sessions"
