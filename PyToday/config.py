@@ -8,7 +8,7 @@ load_dotenv()
 MONGODB_URI = os.getenv("MONGODB_URI", "mongodb+srv://arclx724_db_user:arclx724_db_user@cluster0.czhpczm.mongodb.net/?appName=Cluster0")
 
 # Bot Configuration
-BOT_TOKEN = os.getenv("BOT_TOKEN", "8773484109:AAF90W81bXSADrWGgiZgvA49bupo3KSIcg0")
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8773484109:AAFxeUqNlK2qUTfJaTpJn-8i418pu-96AJU")
 
 # Encryption Key
 ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY", "")
